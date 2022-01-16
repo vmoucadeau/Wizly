@@ -1,16 +1,12 @@
-# wizly
+# Wizly
 
-A new Flutter project.
+Wizly est une petite application Flutter à installer sur une montre Wear OS.
+Elle permet de se connecter à un compte Izly et de générer des QR codes pour payer aux Crous en France (Restos U).
+Vous pouvez installer l'apk à l'aide d'ADB en Wi-Fi :
+  - Connecter votre ordinateur et votre montre au même réseau Wi-Fi (avec le débogage, la montre devrait rester connectée)
+  - Activer les options développeur dans les paramètres (appuyer plusieurs fois sur numéro de build)
+  - Activer le débogage via Wi-Fi et récupérez l'adresse IP et le port
+  - Installer ADB sur votre ordinateur (voir sur android studio)
+  - Utiliser la commande adb connect ip:port pour se connecter à la montre
+  - Enfin, adb install wizly.apk pour installer l'app
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
