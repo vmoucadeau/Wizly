@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:wear/wear.dart';
 import 'package:requests/requests.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:screen/screen.dart';
 
 import 'package:image/image.dart' as Img;
 
@@ -78,6 +79,8 @@ class _MyAppState extends State<MyApp> {
           setState(() {
             qrcode = getQrCode(username, password);
             showForm = false;
+            Screen.setBrightness(1.0);
+            Screen.keepOn(true);
           });
         } else {
           setState(() {
@@ -234,6 +237,8 @@ class _MyAppState extends State<MyApp> {
                           if (value == 302)
                             {
                               setState(() {
+                                Screen.setBrightness(1.0);
+                                Screen.keepOn(true);
                                 qrcode = getQrCode(UsernameController.text, PasswordController.text);
                                 showForm = false;
                               })

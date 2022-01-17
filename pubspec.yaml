@@ -38,6 +38,8 @@ dependencies:
   wear: ^1.0.0
   requests: ^3.3.0
   image: ^2.1.19
+  wakelock: ^0.6.0+1
+  screen: ^0.0.5
 
 dev_dependencies:
   flutter_test:
