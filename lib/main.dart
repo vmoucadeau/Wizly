@@ -8,8 +8,6 @@ import 'package:requests/requests.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:screen/screen.dart';
 
-import 'package:image/image.dart' as Img;
-
 Uint8List dataFromBase64String(String base64String) {
   return base64Decode(base64String);
 }
@@ -22,21 +20,35 @@ void main() {
   runApp(MyApp());
 }
 
-Future<int> izlylogin(user, password) async {
+Future<List<Map<String, String>>> izlylogin(user, password) async {
   var r1 = await Requests.post("https://mon-espace.izly.fr/Home/Logon", body: {"username": user, "password": password});
   r1.raiseForStatus();
-  return r1.statusCode;
+  var hostname = Requests.getHostname("https://mon-espace.izly.fr/Home/Logon");
+  var cookies = await Requests.getStoredCookies(hostname);
+  return [
+    {'status': r1.statusCode.toString()},
+    cookies
+  ];
 }
 
-Future<String> getQrCode(user, password) async {
+Future<String> getQrCode(user, password, cookies) async {
   // this will re-use the persisted cookies
-  var r1 = await Requests.post("https://mon-espace.izly.fr/Home/Logon", body: {"username": user, "password": password});
-  r1.raiseForStatus();
-
+  await Requests.setStoredCookies("mon-espace.izly.fr", cookies);
   var r2 = await Requests.post("https://mon-espace.izly.fr/Home/CreateQrCodeImg", body: {"nbrOfQrCode": 1});
   r2.raiseForStatus();
-  var base64 = r2.json()[0]["Src"].split(",")[1];
-
+  var base64 = "";
+  // On essaye de réutiliser le cookie obtenu au démarrage de l'app (vachement plus rapide)
+  if (r2.statusCode == 200) {
+    base64 = r2.json()[0]["Src"].split(",")[1];
+  } else {
+    // Sinon on récupère le cookie obtenu après le login
+    var r1 =
+        await Requests.post("https://mon-espace.izly.fr/Home/Logon", body: {"username": user, "password": password});
+    r1.raiseForStatus();
+    var r2 = await Requests.post("https://mon-espace.izly.fr/Home/CreateQrCodeImg", body: {"nbrOfQrCode": 1});
+    r2.raiseForStatus();
+    base64 = r2.json()[0]["Src"].split(",")[1];
+  }
   return (base64);
 }
 
@@ -56,6 +68,7 @@ class _MyAppState extends State<MyApp> {
 
   String? username;
   String? password;
+  Map<String, String>? cookies;
 
   // Create storage
   final storage = new FlutterSecureStorage();
@@ -75,9 +88,10 @@ class _MyAppState extends State<MyApp> {
     password = await readSecureData("password");
     if (username != null && password != null) {
       izlylogin(username, password).then((value) {
-        if (value == 302) {
+        if (value[0]["status"] == "302") {
+          cookies = value[1];
           setState(() {
-            qrcode = getQrCode(username, password);
+            qrcode = getQrCode(username, password, cookies);
             showForm = false;
             Screen.setBrightness(1.0);
             Screen.keepOn(true);
@@ -130,7 +144,7 @@ class _MyAppState extends State<MyApp> {
         new GestureDetector(
             onTap: () {
               setState(() {
-                qrcode = getQrCode(username, password);
+                qrcode = getQrCode(username, password, cookies);
               });
             },
             onLongPress: () {
@@ -149,16 +163,15 @@ class _MyAppState extends State<MyApp> {
     return FutureBuilder<String>(
       future: qrcode,
       builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          Img.Image qr = Img.decodeImage(dataFromBase64String(snapshot.data!));
-          Img.Image big_qr = Img.copyResize(qr, width: 150);
+        if (snapshot.hasData && snapshot.data != "") {
           return Image.memory(
-            dataFromBase64String(base64String(Img.encodePng(big_qr))),
-            width: 200,
-            height: 200,
+            dataFromBase64String(snapshot.data!),
+            fit: BoxFit.contain,
+            width: 150,
+            height: 150,
           );
-        } else if (snapshot.hasError) {
-          return Text("Erreur");
+        } else if (snapshot.hasError || snapshot.data == "") {
+          return Text("No QR code");
         }
 
         return const CircularProgressIndicator();
@@ -234,12 +247,13 @@ class _MyAppState extends State<MyApp> {
                     writeSecureData("username", UsernameController.text);
                     writeSecureData("password", PasswordController.text);
                     izlylogin(UsernameController.text, PasswordController.text).then((value) => {
-                          if (value == 302)
+                          if (value[0]['status'] == "302")
                             {
+                              cookies = value[1],
                               setState(() {
                                 Screen.setBrightness(1.0);
                                 Screen.keepOn(true);
-                                qrcode = getQrCode(UsernameController.text, PasswordController.text);
+                                qrcode = getQrCode(UsernameController.text, PasswordController.text, cookies);
                                 showForm = false;
                               })
                             }
