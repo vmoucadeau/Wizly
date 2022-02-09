@@ -38,6 +38,7 @@ dependencies:
   wear: ^1.0.0
   requests: ^3.3.0
   screen: ^0.0.5
+  html: ^0.15.0
 
 dev_dependencies:
   flutter_test:

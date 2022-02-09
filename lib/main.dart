@@ -7,6 +7,7 @@ import 'package:wear/wear.dart';
 import 'package:requests/requests.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:screen/screen.dart';
+import 'package:html/parser.dart' show parse;
 
 Uint8List dataFromBase64String(String base64String) {
   return base64Decode(base64String);
@@ -52,6 +53,19 @@ Future<String> getQrCode(user, password, cookies) async {
   return (base64);
 }
 
+Future<List<String>> getData(user, password, cookies) async {
+  String qrcode = await getQrCode(user, password, cookies);
+  // this will re-use the persisted cookies
+  await Requests.setStoredCookies("mon-espace.izly.fr", cookies);
+  var r2 = await Requests.get("https://mon-espace.izly.fr/Home/");
+  r2.raiseForStatus();
+  String html_home = r2.content();
+  var doc = parse(html_home);
+  var data = doc.getElementsByClassName("balance-text order-2")[0].innerHtml;
+  String balance_formated = data.split("+")[1].split("<")[0] + "€";
+  return [balance_formated, qrcode];
+}
+
 class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -63,7 +77,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final TextEditingController _controller = TextEditingController();
-  Future<String>? qrcode;
+  Future<List<String>>? data;
   bool showForm = false;
 
   String? username;
@@ -91,7 +105,7 @@ class _MyAppState extends State<MyApp> {
         if (value[0]["status"] == "302") {
           cookies = value[1];
           setState(() {
-            qrcode = getQrCode(username, password, cookies);
+            data = getData(username, password, cookies);
             showForm = false;
             Screen.setBrightness(1.0);
             Screen.keepOn(true);
@@ -123,7 +137,7 @@ class _MyAppState extends State<MyApp> {
           child: WatchShape(
             builder: (BuildContext context, WearShape shape, Widget? child) {
               return Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: <Widget>[
                   Container(
                     child: showForm ? loginForm(context) : buildQRCodeColumn(),
@@ -139,12 +153,12 @@ class _MyAppState extends State<MyApp> {
 
   Column buildQRCodeColumn() {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.start,
       children: <Widget>[
         new GestureDetector(
             onTap: () {
               setState(() {
-                qrcode = getQrCode(username, password, cookies);
+                data = getData(username, password, cookies);
               });
             },
             onLongPress: () {
@@ -159,16 +173,32 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  FutureBuilder<String> buildFutureQRcode() {
-    return FutureBuilder<String>(
-      future: qrcode,
+  FutureBuilder<List<String>> buildFutureQRcode() {
+    return FutureBuilder<List<String>>(
+      future: data,
       builder: (context, snapshot) {
         if (snapshot.hasData && snapshot.data != "") {
-          return Image.memory(
-            dataFromBase64String(snapshot.data!),
-            fit: BoxFit.contain,
-            width: 150,
-            height: 150,
+          String qrcode = snapshot.data![1];
+          String balance = snapshot.data![0];
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Text(
+                  balance,
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(0.0),
+                child: Image.memory(
+                  dataFromBase64String(qrcode),
+                  fit: BoxFit.contain,
+                  width: 150,
+                  height: 150,
+                ),
+              ),
+            ],
           );
         } else if (snapshot.hasError || snapshot.data == "") {
           return Text("No QR code");
@@ -253,7 +283,7 @@ class _MyAppState extends State<MyApp> {
                               setState(() {
                                 Screen.setBrightness(1.0);
                                 Screen.keepOn(true);
-                                qrcode = getQrCode(UsernameController.text, PasswordController.text, cookies);
+                                data = getData(UsernameController.text, PasswordController.text, cookies);
                                 showForm = false;
                               })
                             }
