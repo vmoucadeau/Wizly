@@ -84,6 +84,8 @@ class _MyAppState extends State<MyApp> {
   String? password;
   Map<String, String>? cookies;
 
+  MainAxisAlignment alignment = MainAxisAlignment.center;
+
   // Create storage
   final storage = new FlutterSecureStorage();
 
@@ -109,6 +111,7 @@ class _MyAppState extends State<MyApp> {
             showForm = false;
             Screen.setBrightness(1.0);
             Screen.keepOn(true);
+            alignment = MainAxisAlignment.start;
           });
         } else {
           setState(() {
@@ -137,7 +140,7 @@ class _MyAppState extends State<MyApp> {
           child: WatchShape(
             builder: (BuildContext context, WearShape shape, Widget? child) {
               return Column(
-                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisAlignment: alignment,
                 children: <Widget>[
                   Container(
                     child: showForm ? loginForm(context) : buildQRCodeColumn(),
@@ -153,7 +156,7 @@ class _MyAppState extends State<MyApp> {
 
   Column buildQRCodeColumn() {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
         new GestureDetector(
             onTap: () {
@@ -164,6 +167,7 @@ class _MyAppState extends State<MyApp> {
             onLongPress: () {
               setState(() {
                 showForm = true;
+                alignment = MainAxisAlignment.center;
               });
             },
             child: new Container(
@@ -285,6 +289,7 @@ class _MyAppState extends State<MyApp> {
                                 Screen.keepOn(true);
                                 data = getData(UsernameController.text, PasswordController.text, cookies);
                                 showForm = false;
+                                alignment = MainAxisAlignment.start;
                               })
                             }
                         });
