@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.wizly">
+    package="com.vmoucadeau.wizly">
    <application
-        android:label="wizly"
+        android:label="Wizly"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
