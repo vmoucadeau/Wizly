@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   flutter_secure_storage: ^5.0.2
   wear: ^1.1.0
-  requests: ^3.3.0
+  requests: ^4.1.0
   html: ^0.15.0
   flutter_screen_wake: ^1.0.2
 
