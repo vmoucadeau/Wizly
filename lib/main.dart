@@ -128,7 +128,7 @@ class _MyAppState extends State<MyApp> {
     initapp();
   }
 
-  // This widget is the root of your application.
+  // This widget is the root the app.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -200,6 +200,7 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  // Show login form
   Form loginForm(BuildContext context) {
     final UsernameController = TextEditingController();
     final PasswordController = TextEditingController();
