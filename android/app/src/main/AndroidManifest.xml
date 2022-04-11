@@ -32,4 +32,5 @@
             android:value="2" />
     </application>
     <uses-permission android:name="android.permission.INTERNET"/> <!-- Internet permission -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" /> <!-- Wake Lock permission -->
 </manifest>

@@ -35,10 +35,10 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
   flutter_secure_storage: ^5.0.2
-  wear: ^1.0.0
+  wear: ^1.1.0
   requests: ^3.3.0
-  screen: ^0.0.5
   html: ^0.15.0
+  flutter_screen_wake: ^1.0.2
 
 dev_dependencies:
   flutter_test:

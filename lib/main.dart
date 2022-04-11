@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:wear/wear.dart';
 import 'package:requests/requests.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:screen/screen.dart';
+import 'package:flutter_screen_wake/flutter_screen_wake.dart';
 import 'package:html/parser.dart' show parse;
 
 Uint8List dataFromBase64String(String base64String) {
@@ -84,8 +84,6 @@ class _MyAppState extends State<MyApp> {
   String? password;
   Map<String, String>? cookies;
 
-  MainAxisAlignment alignment = MainAxisAlignment.center;
-
   // Create storage
   final storage = new FlutterSecureStorage();
 
@@ -100,6 +98,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void initapp() async {
+    FlutterScreenWake.keepOn(true);
     username = await readSecureData("username");
     password = await readSecureData("password");
     if (username != null && password != null) {
@@ -109,9 +108,7 @@ class _MyAppState extends State<MyApp> {
           setState(() {
             data = getData(username, password, cookies);
             showForm = false;
-            Screen.setBrightness(1.0);
-            Screen.keepOn(true);
-            alignment = MainAxisAlignment.start;
+            FlutterScreenWake.setBrightness(1.0);
           });
         } else {
           setState(() {
@@ -139,14 +136,7 @@ class _MyAppState extends State<MyApp> {
         body: Center(
           child: WatchShape(
             builder: (BuildContext context, WearShape shape, Widget? child) {
-              return Column(
-                mainAxisAlignment: alignment,
-                children: <Widget>[
-                  Container(
-                    child: showForm ? loginForm(context) : buildQRCodeColumn(),
-                  ),
-                ],
-              );
+              return showForm ? loginForm(context) : buildQRCodeContainer();
             },
           ),
         ),
@@ -154,26 +144,22 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  Column buildQRCodeColumn() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        new GestureDetector(
-            onTap: () {
-              setState(() {
-                data = getData(username, password, cookies);
-              });
-            },
-            onLongPress: () {
-              setState(() {
-                showForm = true;
-                alignment = MainAxisAlignment.center;
-              });
-            },
-            child: new Container(
-              child: buildFutureQRcode(),
-            )),
-      ],
+  Container buildQRCodeContainer() {
+    return Container(
+      child: new GestureDetector(
+          onTap: () {
+            setState(() {
+              data = getData(username, password, cookies);
+            });
+          },
+          onLongPress: () {
+            setState(() {
+              showForm = true;
+            });
+          },
+          child: new Container(
+            child: buildFutureQRcode(),
+          )),
     );
   }
 
@@ -185,6 +171,7 @@ class _MyAppState extends State<MyApp> {
           String qrcode = snapshot.data![1];
           String balance = snapshot.data![0];
           return Column(
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Padding(
                 padding: const EdgeInsets.all(10.0),
@@ -208,7 +195,7 @@ class _MyAppState extends State<MyApp> {
           return Text("No QR code");
         }
 
-        return const CircularProgressIndicator();
+        return CircularProgressIndicator();
       },
     );
   }
@@ -229,77 +216,70 @@ class _MyAppState extends State<MyApp> {
     final _formKey = GlobalKey<FormState>();
     return Form(
       key: _formKey,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        SizedBox(
+          height: 45.0,
+          width: 150.0,
+          child: TextFormField(
+            controller: UsernameController,
+            decoration: const InputDecoration(
+              icon: Icon(Icons.person),
+              hintText: 'User',
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Ne peut pas être vide';
+              }
+              return null;
+            },
+          ),
+        ),
+        SizedBox(
+          height: 45.0,
+          width: 150.0,
+          child: TextFormField(
+            controller: PasswordController,
+            decoration: const InputDecoration(
+              icon: Icon(Icons.lock),
+              hintText: 'Password',
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Ne peut pas être vide';
+              }
+              return null;
+            },
+            obscureText: true,
+            enableSuggestions: false,
+            autocorrect: false,
+          ),
+        ),
         Container(
-          // margin: EdgeInsets.symmetric(horizontal: 25.0, vertical: 10.0),
-          child: Column(children: [
-            SizedBox(
-              height: 45.0,
-              width: 150.0,
-              child: TextFormField(
-                controller: UsernameController,
-                decoration: const InputDecoration(
-                  icon: Icon(Icons.person),
-                  hintText: 'User',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ne peut pas être vide';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            SizedBox(
-              height: 45.0,
-              width: 150.0,
-              child: TextFormField(
-                controller: PasswordController,
-                decoration: const InputDecoration(
-                  icon: Icon(Icons.lock),
-                  hintText: 'Password',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ne peut pas être vide';
-                  }
-                  return null;
-                },
-                obscureText: true,
-                enableSuggestions: false,
-                autocorrect: false,
-              ),
-            ),
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 10.0),
-              child: ElevatedButton(
-                onPressed: () {
-                  // Validate returns true if the form is valid, or false otherwise.
-                  if (_formKey.currentState!.validate()) {
-                    // If the form is valid, display a snackbar. In the real world,
-                    // you'd often call a server or save the information in a database.
-                    writeSecureData("username", UsernameController.text);
-                    writeSecureData("password", PasswordController.text);
-                    izlylogin(UsernameController.text, PasswordController.text).then((value) => {
-                          if (value[0]['status'] == "302")
-                            {
-                              cookies = value[1],
-                              setState(() {
-                                Screen.setBrightness(1.0);
-                                Screen.keepOn(true);
-                                data = getData(UsernameController.text, PasswordController.text, cookies);
-                                showForm = false;
-                                alignment = MainAxisAlignment.start;
-                              })
-                            }
-                        });
-                  }
-                },
-                child: const Text('Envoyer'),
-              ),
-            ),
-          ]),
-        )
+          margin: const EdgeInsets.symmetric(vertical: 10.0),
+          child: ElevatedButton(
+            onPressed: () {
+              // Validate returns true if the form is valid, or false otherwise.
+              if (_formKey.currentState!.validate()) {
+                // If the form is valid, display a snackbar. In the real world,
+                // you'd often call a server or save the information in a database.
+                writeSecureData("username", UsernameController.text);
+                writeSecureData("password", PasswordController.text);
+                izlylogin(UsernameController.text, PasswordController.text).then((value) => {
+                      if (value[0]['status'] == "302")
+                        {
+                          cookies = value[1],
+                          setState(() {
+                            FlutterScreenWake.setBrightness(1.0);
+                            data = getData(UsernameController.text, PasswordController.text, cookies);
+                            showForm = false;
+                          })
+                        }
+                    });
+              }
+            },
+            child: const Text('Envoyer'),
+          ),
+        ),
       ]),
     );
   }
