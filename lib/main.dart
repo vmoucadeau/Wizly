@@ -9,6 +9,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_screen_wake/flutter_screen_wake.dart';
 import 'package:html/parser.dart' show parse;
 
+AndroidOptions _getAndroidOptions() => const AndroidOptions(
+      encryptedSharedPreferences: true,
+    );
+
 Uint8List dataFromBase64String(String base64String) {
   return base64Decode(base64String);
 }
@@ -21,49 +25,36 @@ void main() {
   runApp(MyApp());
 }
 
-Future<List<Map<String, String>>> izlylogin(user, password) async {
-  var r1 = await Requests.post("https://mon-espace.izly.fr/Home/Logon", body: {"username": user, "password": password});
-  r1.raiseForStatus();
-  var hostname = Requests.getHostname("https://mon-espace.izly.fr/Home/Logon");
-  var cookies = await Requests.getStoredCookies(hostname);
-  return [
-    {'status': r1.statusCode.toString()},
-    cookies
-  ];
-}
+Future<List<String>> getData(user, password) async {
+  // Bypass form verification token
+  var get_verif_code = await Requests.get("https://mon-espace.izly.fr/");
+  get_verif_code.raiseForStatus();
+  var homepage = parse(get_verif_code.content());
+  var veriftoken =
+      homepage.getElementsByClassName("form-horizontal")[0].getElementsByTagName("input")[0].attributes["value"];
 
-Future<String> getQrCode(user, password, cookies) async {
-  // this will re-use the persisted cookies
-  await Requests.setStoredCookies("mon-espace.izly.fr", cookies);
-  var r2 = await Requests.post("https://mon-espace.izly.fr/Home/CreateQrCodeImg", body: {"nbrOfQrCode": 1});
-  r2.raiseForStatus();
-  var base64 = "";
-  // On essaye de réutiliser le cookie obtenu au démarrage de l'app (vachement plus rapide)
-  if (r2.statusCode == 200) {
-    base64 = r2.json()[0]["Src"].split(",")[1];
-  } else {
-    // Sinon on récupère le cookie obtenu après le login
-    var r1 =
-        await Requests.post("https://mon-espace.izly.fr/Home/Logon", body: {"username": user, "password": password});
-    r1.raiseForStatus();
-    var r2 = await Requests.post("https://mon-espace.izly.fr/Home/CreateQrCodeImg", body: {"nbrOfQrCode": 1});
-    r2.raiseForStatus();
-    base64 = r2.json()[0]["Src"].split(",")[1];
+  var login_req = await Requests.post("https://mon-espace.izly.fr/Home/Logon",
+      body: {"Username": user, "Password": password, "__RequestVerificationToken": veriftoken});
+  login_req.raiseForStatus();
+  var status = login_req.statusCode.toString();
+  var cookies = await Requests.getStoredCookies(Requests.getHostname("https://mon-espace.izly.fr/Home/Logon"));
+
+  // If login error then return status code
+  if (status != "302") {
+    return [status];
   }
-  return (base64);
-}
 
-Future<List<String>> getData(user, password, cookies) async {
-  String qrcode = await getQrCode(user, password, cookies);
-  // this will re-use the persisted cookies
-  await Requests.setStoredCookies("mon-espace.izly.fr", cookies);
-  var r2 = await Requests.get("https://mon-espace.izly.fr/Home/");
-  r2.raiseForStatus();
-  String html_home = r2.content();
-  var doc = parse(html_home);
-  var data = doc.getElementsByClassName("balance-text order-2")[0].innerHtml;
+  var qrcode_req = await Requests.post("https://mon-espace.izly.fr/Home/CreateQrCodeImg", body: {"nbrOfQrCode": 1});
+  qrcode_req.throwForStatus();
+  var qrcode_base64 = qrcode_req.json()[0]["Src"].split(",")[1];
+
+  var balance_req = await Requests.get("https://mon-espace.izly.fr/Home/");
+  balance_req.raiseForStatus();
+  var izlyhomepage = parse(balance_req.content());
+  var data = izlyhomepage.getElementsByClassName("balance-text order-2")[0].innerHtml;
   String balance_formated = data.split("+")[1].split("<")[0] + "€";
-  return [balance_formated, qrcode];
+
+  return [status, balance_formated, qrcode_base64];
 }
 
 class MyApp extends StatefulWidget {
@@ -77,12 +68,11 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final TextEditingController _controller = TextEditingController();
-  Future<List<String>>? data;
+  Future<List<String>>? izly_data;
   bool showForm = false;
 
   String? username;
   String? password;
-  Map<String, String>? cookies;
 
   // Create storage
   final storage = new FlutterSecureStorage();
@@ -99,28 +89,17 @@ class _MyAppState extends State<MyApp> {
 
   void initapp() async {
     FlutterScreenWake.keepOn(true);
-    username = await readSecureData("username");
-    password = await readSecureData("password");
-    if (username != null && password != null) {
-      izlylogin(username, password).then((value) {
-        if (value[0]["status"] == "302") {
-          cookies = value[1];
-          setState(() {
-            data = getData(username, password, cookies);
-            showForm = false;
-            FlutterScreenWake.setBrightness(1.0);
-          });
-        } else {
-          setState(() {
-            showForm = true;
-          });
-        }
-      });
-    } else {
-      setState(() {
+    // username = await readSecureData("username");
+    // password = await readSecureData("password");
+    setState(() {
+      if (username != null && password != null) {
+        showForm = false;
+        FlutterScreenWake.setBrightness(1.0);
+        izly_data = getData(username, password);
+      } else {
         showForm = true;
-      });
-    }
+      }
+    });
   }
 
   void initState() {
@@ -149,7 +128,7 @@ class _MyAppState extends State<MyApp> {
       child: new GestureDetector(
           onTap: () {
             setState(() {
-              data = getData(username, password, cookies);
+              izly_data = getData(username, password);
             });
           },
           onLongPress: () {
@@ -165,11 +144,11 @@ class _MyAppState extends State<MyApp> {
 
   FutureBuilder<List<String>> buildFutureQRcode() {
     return FutureBuilder<List<String>>(
-      future: data,
+      future: izly_data,
       builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data != "") {
-          String qrcode = snapshot.data![1];
-          String balance = snapshot.data![0];
+        if (snapshot.hasData && snapshot.data![0] == "302") {
+          String qrcode = snapshot.data![2];
+          String balance = snapshot.data![1];
           return Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
@@ -191,7 +170,7 @@ class _MyAppState extends State<MyApp> {
               ),
             ],
           );
-        } else if (snapshot.hasError || snapshot.data == "") {
+        } else if (snapshot.hasError) {
           return Text("No QR code");
         }
 
@@ -259,26 +238,17 @@ class _MyAppState extends State<MyApp> {
           margin: const EdgeInsets.symmetric(vertical: 10.0),
           child: ElevatedButton(
             onPressed: () {
-              // Validate returns true if the form is valid, or false otherwise.
               if (_formKey.currentState!.validate()) {
-                // If the form is valid, display a snackbar. In the real world,
-                // you'd often call a server or save the information in a database.
-                writeSecureData("username", UsernameController.text);
-                writeSecureData("password", PasswordController.text);
-                izlylogin(UsernameController.text, PasswordController.text).then((value) => {
-                      if (value[0]['status'] == "302")
-                        {
-                          cookies = value[1],
-                          setState(() {
-                            FlutterScreenWake.setBrightness(1.0);
-                            data = getData(UsernameController.text, PasswordController.text, cookies);
-                            showForm = false;
-                          })
-                        }
-                    });
+                // writeSecureData("username", UsernameController.text);
+                // writeSecureData("password", PasswordController.text);
+                setState(() {
+                  FlutterScreenWake.setBrightness(1.0);
+                  izly_data = getData(UsernameController.text, PasswordController.text);
+                  showForm = false;
+                });
               }
             },
-            child: const Text('Envoyer'),
+            child: const Text('Connexion'),
           ),
         ),
       ]),
