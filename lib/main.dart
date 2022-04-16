@@ -89,8 +89,8 @@ class _MyAppState extends State<MyApp> {
 
   void initapp() async {
     FlutterScreenWake.keepOn(true);
-    // username = await readSecureData("username");
-    // password = await readSecureData("password");
+    username = await readSecureData("username");
+    password = await readSecureData("password");
     setState(() {
       if (username != null && password != null) {
         showForm = false;
@@ -239,8 +239,8 @@ class _MyAppState extends State<MyApp> {
           child: ElevatedButton(
             onPressed: () {
               if (_formKey.currentState!.validate()) {
-                // writeSecureData("username", UsernameController.text);
-                // writeSecureData("password", PasswordController.text);
+                writeSecureData("username", UsernameController.text);
+                writeSecureData("password", PasswordController.text);
                 setState(() {
                   FlutterScreenWake.setBrightness(1.0);
                   izly_data = getData(UsernameController.text, PasswordController.text);
