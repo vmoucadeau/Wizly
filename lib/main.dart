@@ -26,26 +26,23 @@ void main() {
 }
 
 Future<List<String>> getData(user, password) async {
-  // Bypass form verification token
-  var get_verif_code = await Requests.get("https://mon-espace.izly.fr/");
-  get_verif_code.raiseForStatus();
-  var homepage = parse(get_verif_code.content());
-  var veriftoken =
-      homepage.getElementsByClassName("form-horizontal")[0].getElementsByTagName("input")[0].attributes["value"];
+  if (user != "") {
+    // (if not refresh)
+    await Requests.clearStoredCookies(Requests.getHostname("https://mon-espace.izly.fr/"));
+    var get_verif_code = await Requests.get("https://mon-espace.izly.fr/");
+    get_verif_code.raiseForStatus();
+    var homepage = parse(get_verif_code.content());
+    var veriftoken =
+        homepage.getElementsByClassName("form-horizontal")[0].getElementsByTagName("input")[0].attributes["value"];
 
-  var login_req = await Requests.post("https://mon-espace.izly.fr/Home/Logon",
-      body: {"Username": user, "Password": password, "__RequestVerificationToken": veriftoken});
-  login_req.raiseForStatus();
-  var status = login_req.statusCode.toString();
-  var cookies = await Requests.getStoredCookies(Requests.getHostname("https://mon-espace.izly.fr/Home/Logon"));
-
-  // If login error then return status code
-  if (status != "302") {
-    return [status];
+    var login_req = await Requests.post("https://mon-espace.izly.fr/Home/Logon",
+        body: {"Username": user, "Password": password, "__RequestVerificationToken": veriftoken});
+    login_req.raiseForStatus();
   }
 
   var qrcode_req = await Requests.post("https://mon-espace.izly.fr/Home/CreateQrCodeImg", body: {"nbrOfQrCode": 1});
-  qrcode_req.throwForStatus();
+  qrcode_req.raiseForStatus();
+  var status = qrcode_req.statusCode.toString();
   var qrcode_base64 = qrcode_req.json()[0]["Src"].split(",")[1];
 
   var balance_req = await Requests.get("https://mon-espace.izly.fr/Home/");
@@ -53,7 +50,6 @@ Future<List<String>> getData(user, password) async {
   var izlyhomepage = parse(balance_req.content());
   var data = izlyhomepage.getElementsByClassName("balance-text order-2")[0].innerHtml;
   String balance_formated = data.split("+")[1].split("<")[0] + "€";
-
   return [status, balance_formated, qrcode_base64];
 }
 
@@ -128,7 +124,7 @@ class _MyAppState extends State<MyApp> {
       child: new GestureDetector(
           onTap: () {
             setState(() {
-              izly_data = getData(username, password);
+              izly_data = getData("", "");
             });
           },
           onLongPress: () {
@@ -146,7 +142,7 @@ class _MyAppState extends State<MyApp> {
     return FutureBuilder<List<String>>(
       future: izly_data,
       builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data![0] == "302") {
+        if (snapshot.hasData && (snapshot.data![0] == "302" || snapshot.data![0] == "200")) {
           String qrcode = snapshot.data![2];
           String balance = snapshot.data![1];
           return Column(
