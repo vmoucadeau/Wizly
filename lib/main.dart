@@ -36,16 +36,16 @@ Future<List<String>> getData(user, password) async {
         homepage.getElementsByClassName("form-horizontal")[0].getElementsByTagName("input")[0].attributes["value"];
 
     var login_req = await Requests.post("https://mon-espace.izly.fr/Home/Logon",
-        body: {"Username": user, "Password": password, "__RequestVerificationToken": veriftoken});
+        body: {"Username": user, "Password": password, "__RequestVerificationToken": veriftoken, "ReturnUrl": "/"});
     login_req.raiseForStatus();
   }
 
-  var qrcode_req = await Requests.post("https://mon-espace.izly.fr/Home/CreateQrCodeImg", body: {"nbrOfQrCode": 1});
+  var qrcode_req = await Requests.post("https://mon-espace.izly.fr/Home/CreateQrCodeImg", body: {"numberOfQrCodes": 1});
   qrcode_req.raiseForStatus();
   var status = qrcode_req.statusCode.toString();
-  var qrcode_base64 = qrcode_req.json()[0]["Src"].split(",")[1];
+  var qrcode_base64 = qrcode_req.json()[0];
 
-  var balance_req = await Requests.get("https://mon-espace.izly.fr/Home/");
+  var balance_req = await Requests.get("https://mon-espace.izly.fr/Home");
   balance_req.raiseForStatus();
   var izlyhomepage = parse(balance_req.content());
   var data = izlyhomepage.getElementsByClassName("balance-text order-2")[0].innerHtml;
@@ -167,7 +167,8 @@ class _MyAppState extends State<MyApp> {
             ],
           );
         } else if (snapshot.hasError) {
-          return Text("No QR code");
+          return Text("${snapshot.error}");
+          // return Text("No QR code");
         }
 
         return CircularProgressIndicator();
@@ -198,6 +199,7 @@ class _MyAppState extends State<MyApp> {
           width: 150.0,
           child: TextFormField(
             controller: UsernameController,
+            keyboardType: TextInputType.number,
             decoration: const InputDecoration(
               icon: Icon(Icons.person),
               hintText: 'User',
@@ -215,6 +217,7 @@ class _MyAppState extends State<MyApp> {
           width: 150.0,
           child: TextFormField(
             controller: PasswordController,
+            keyboardType: TextInputType.number,
             decoration: const InputDecoration(
               icon: Icon(Icons.lock),
               hintText: 'Password',
